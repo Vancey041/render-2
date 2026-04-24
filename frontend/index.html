@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cars Fanbase</title>
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #f4f4f9; text-align: center; padding: 20px; }
+        .grid { display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; margin-top: 20px; }
+        .card { background: white; border-radius: 10px; padding: 15px; width: 250px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+        .card img { width: 100%; height: auto; border-radius: 5px; }
+        .card h3 { color: #d32f2f; margin: 10px 0 5px; }
+        .card p { font-size: 14px; color: #555; font-style: italic; }
+        .car-model { font-size: 12px; font-weight: bold; color: #333; margin-bottom: 10px; }
+        .actor { font-size: 11px; color: #888; margin-top: 10px; border-top: 1px solid #eee; padding-top: 10px; }
+    </style>
+</head>
+<body>
+
+    <h1>Welcome to Radiator Springs!</h1>
+    <p>Data is being fetched live from the FastAPI Backend.</p>
+
+    <div class="grid" id="character-container"></div>
+
+    <script>
+        // 1. Point this to your backend URL (Localhost for now)
+        const API_URL = "https://your-new-render-url.onrender.com/characters/";
+        
+        // 2. Fetch the data from FastAPI
+        async function fetchCharacters() {
+            try {
+                const response = await fetch(API_URL);
+                const characters = await response.json();
+                displayCharacters(characters);
+            } catch (error) {
+                console.error("Error fetching data:", error);
+                document.getElementById('character-container').innerHTML = "<p>Ensure your backend is running!</p>";
+            }
+        }
+
+        // 3. Build the HTML cards using the JSON data
+        function displayCharacters(characters) {
+            const container = document.getElementById('character-container');
+            
+            characters.forEach(character => {
+                // Format name for the image path (e.g., "Lightning McQueen" -> "lightning_mcqueen")
+                const imageName = character.name.toLowerCase().replace(/ /g, '_');
+                
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.innerHTML = `
+                    <img src="images/${imageName}.jpg" alt="${character.name}" onerror="this.src='https://via.placeholder.com/250x150?text=No+Image'">
+                    <h3>${character.name}</h3>
+                    <div class="car-model">${character.car_model}</div>
+                    <p>"${character.quote}"</p>
+                    <div class="actor">Voiced by: ${character.actor ? character.actor.name : 'Unknown'}</div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        // 4. Run the function when the page loads
+        fetchCharacters();
+    </script>
+</body>
+</html>
