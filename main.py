@@ -21,21 +21,18 @@ Base = declarative_base()
 # ==========================================
 class DBActor(Base):
     __tablename__ = "actors"
-    
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, unique=True, index=True)
-    
     characters = relationship("DBCharacter", back_populates="actor")
 
 class DBCharacter(Base):
     __tablename__ = "characters"
-    
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, unique=True, index=True)
     car_model = Column(String)
     quote = Column(String)
+    description = Column(String) # <--- NEW FIELD
     actor_id = Column(Integer, ForeignKey("actors.id"))
-    
     actor = relationship("DBActor", back_populates="characters")
 
 Base.metadata.create_all(bind=engine)
@@ -55,6 +52,7 @@ class CharacterBase(BaseModel):
     name: str
     car_model: str
     quote: str
+    description: str # <--- NEW FIELD
     actor_id: int
 
 class CharacterResponse(CharacterBase):
@@ -64,7 +62,7 @@ class CharacterResponse(CharacterBase):
         from_attributes = True
 
 # ==========================================
-# 4. FASTAPI APP & API ROUTES
+# 4. FASTAPI APP & ROUTES
 # ==========================================
 app = FastAPI(title="Cars Fanbase API")
 
@@ -75,7 +73,6 @@ def get_db():
     finally:
         db.close()
 
-# Auto-seed the database on startup so it isn't empty
 @app.on_event("startup")
 def seed_data():
     db = SessionLocal()
@@ -87,21 +84,44 @@ def seed_data():
         db.add_all([owen, larry, paul, bonnie])
         db.commit()
 
-        mcqueen = DBCharacter(name="Lightning McQueen", car_model="Custom 2006 Piston Cup Racer", quote="Ka-chow!", actor_id=owen.id)
-        mater = DBCharacter(name="Tow Mater", car_model="1951 International Harvester Boom Truck", quote="Dad gum!", actor_id=larry.id)
-        doc = DBCharacter(name="Doc Hudson", car_model="1951 Hudson Hornet", quote="I'll put it simple: if you're going hard enough left, you'll find yourself turning right.", actor_id=paul.id)
-        sally = DBCharacter(name="Sally Carrera", car_model="2002 Porsche 911 Carrera", quote="It's a great town. You should see it sometime.", actor_id=bonnie.id)
+        # Added detailed descriptions for each character
+        mcqueen = DBCharacter(
+            name="Lightning McQueen", 
+            car_model="Custom 2006 Piston Cup Racer", 
+            quote="Ka-chow!", 
+            description="A hotshot rookie race car driven to succeed. He discovers that life is about the journey, not the finish line, after getting stranded in the forgotten town of Radiator Springs.",
+            actor_id=owen.id
+        )
+        mater = DBCharacter(
+            name="Tow Mater", 
+            car_model="1951 International Harvester Boom Truck", 
+            quote="Dad gum!", 
+            description="A rusty but trusty tow truck with a heart of gold. He becomes Lightning McQueen's best friend and is always ready for a tractor-tipping adventure.",
+            actor_id=larry.id
+        )
+        doc = DBCharacter(
+            name="Doc Hudson", 
+            car_model="1951 Hudson Hornet", 
+            quote="I'll put it simple: if you're going hard enough left, you'll find yourself turning right.", 
+            description="The quiet town judge and doctor with a secret past as the Fabulous Hudson Hornet, a three-time Piston Cup champion who teaches McQueen the true meaning of racing.",
+            actor_id=paul.id
+        )
+        sally = DBCharacter(
+            name="Sally Carrera", 
+            car_model="2002 Porsche 911 Carrera", 
+            quote="It's a great town. You should see it sometime.", 
+            description="A former Los Angeles attorney who left the fast lane to find peace in Radiator Springs. She runs the Cozy Cone Motel and helps McQueen see the beauty of the town.",
+            actor_id=bonnie.id
+        )
         
         db.add_all([mcqueen, mater, doc, sally])
         db.commit()
     db.close()
 
-# Endpoint: Get All Characters
 @app.get("/characters/", response_model=List[CharacterResponse], tags=["API"])
 def get_all_characters(skip: int = 0, limit: int = 10, db: Session = Depends(get_db)):
     return db.query(DBCharacter).offset(skip).limit(limit).all()
 
-# Endpoint: Get Specific Character
 @app.get("/characters/{character_id}", response_model=CharacterResponse, tags=["API"])
 def get_character(character_id: int, db: Session = Depends(get_db)):
     character = db.query(DBCharacter).filter(DBCharacter.id == character_id).first()
@@ -109,13 +129,11 @@ def get_character(character_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Character not found")
     return character
 
-# Endpoint: Get All Actors
 @app.get("/actors/", response_model=List[ActorResponse], tags=["API"])
 def get_actors(skip: int = 0, limit: int = 10, db: Session = Depends(get_db)):
     return db.query(DBActor).offset(skip).limit(limit).all()
 
 # ==========================================
-# 5. SERVE THE FRONTEND (MUST BE AT THE BOTTOM)
+# 5. SERVE THE FRONTEND
 # ==========================================
-# This tells FastAPI to serve your frontend folder as the homepage
 app.mount("/", StaticFiles(directory="frontend", html=True), name="frontend")
