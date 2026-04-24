@@ -1,0 +1,132 @@
+from fastapi import FastAPI, Depends, HTTPException
+from sqlalchemy import create_engine, Column, Integer, String, ForeignKey
+from sqlalchemy.orm import declarative_base, sessionmaker, Session, relationship
+from pydantic import BaseModel
+from typing import List, Optional
+
+
+1. DATABASE SETUP
+
+SQLALCHEMY_DATABASE_URL = "sqlite:///./cars_fanbase.db"
+
+engine = create_engine(
+    SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
+)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+Base = declarative_base()
+
+
+# 2. SQLALCHEMY MODELS 
+
+class DBActor(Base):
+    __tablename__ = "actors"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, unique=True, index=True)
+    
+    # Relationship to characters
+    characters = relationship("DBCharacter", back_populates="actor")
+
+class DBCharacter(Base):
+    __tablename__ = "characters"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, unique=True, index=True)
+    car_model = Column(String)
+    quote = Column(String)
+    actor_id = Column(Integer, ForeignKey("actors.id"))
+
+    # Relationship to actor
+    actor = relationship("DBActor", back_populates="characters")
+
+# Create tables
+Base.metadata.create_all(bind=engine)
+
+
+# 3. PYDANTIC SCHEMAS (API Data Validation)
+
+class ActorBase(BaseModel):
+    name: str
+
+class ActorResponse(ActorBase):
+    id: int
+    class Config:
+        from_attributes = True
+
+class CharacterBase(BaseModel):
+    name: str
+    car_model: str
+    quote: str
+    actor_id: int
+
+class CharacterResponse(CharacterBase):
+    id: int
+    actor: Optional[ActorResponse] = None
+    class Config:
+        from_attributes = True
+
+
+# 4. FASTAPI APP & ROUTES
+
+app = FastAPI(
+    title="Cars Fanbase API",
+    description="An API for characters and voice actors from Pixar's Cars (2006)",
+    version="1.0.0"
+)
+
+# Dependency to get DB session
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+# --- AUTO SEED DATA ON STARTUP ---
+@app.on_event("startup")
+def seed_data():
+    db = SessionLocal()
+    if db.query(DBActor).first() is None:
+        # Seed Actors
+        owen = DBActor(name="Owen Wilson")
+        larry = DBActor(name="Larry the Cable Guy")
+        paul = DBActor(name="Paul Newman")
+        bonnie = DBActor(name="Bonnie Hunt")
+        db.add_all([owen, larry, paul, bonnie])
+        db.commit()
+
+        # Seed Characters
+        mcqueen = DBCharacter(name="Lightning McQueen", car_model="Custom 2006 Piston Cup Racer", quote="Ka-chow!", actor_id=owen.id)
+        mater = DBCharacter(name="Tow Mater", car_model="1951 International Harvester Boom Truck", quote="Dad gum!", actor_id=larry.id)
+        doc = DBCharacter(name="Doc Hudson", car_model="1951 Hudson Hornet", quote="I'll put it simple: if you're going hard enough left, you'll find yourself turning right.", actor_id=paul.id)
+        sally = DBCharacter(name="Sally Carrera", car_model="2002 Porsche 911 Carrera", quote="It's a great town. You should see it sometime.", actor_id=bonnie.id)
+        
+        db.add_all([mcqueen, mater, doc, sally])
+        db.commit()
+    db.close()
+
+# ENDPOINTS 
+
+@app.get("/", tags=["Root"])
+def read_root():
+    return {"message": "Welcome to the Cars Fanbase API! Go to /docs to see the endpoints."}
+
+# 1. Get All Characters
+@app.get("/characters/", response_model=List[CharacterResponse], tags=["Characters"])
+def get_all_characters(skip: int = 0, limit: int = 10, db: Session = Depends(get_db)):
+    characters = db.query(DBCharacter).offset(skip).limit(limit).all()
+    return characters
+
+# 2. Get a Specific Character
+@app.get("/characters/{character_id}", response_model=CharacterResponse, tags=["Characters"])
+def get_character(character_id: int, db: Session = Depends(get_db)):
+    character = db.query(DBCharacter).filter(DBCharacter.id == character_id).first()
+    if character is None:
+        raise HTTPException(status_code=404, detail="Character not found")
+    return character
+
+# 3. Get Actors
+@app.get("/actors/", response_model=List[ActorResponse], tags=["Actors"])
+def get_actors(skip: int = 0, limit: int = 10, db: Session = Depends(get_db)):
+    actors = db.query(DBActor).offset(skip).limit(limit).all()
+    return actors
