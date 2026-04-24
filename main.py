@@ -5,7 +5,7 @@ from pydantic import BaseModel
 from typing import List, Optional
 
 
-1. DATABASE SETUP
+# 1. DATABASE SETUP
 
 SQLALCHEMY_DATABASE_URL = "sqlite:///./cars_fanbase.db"
 
