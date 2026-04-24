@@ -20,11 +20,10 @@
         .card:hover { transform: scale(1.05); box-shadow: 0 8px 16px rgba(0,0,0,0.2); }
         .card img { width: 100%; height: 150px; object-fit: cover; border-radius: 5px; }
         .card h3 { color: #333; margin: 15px 0 5px; }
-        .car-model-sm { font-size: 12px; font-weight: bold; color: #d32f2f; margin-bottom: 10px; }
         
         /* --- CHARACTER DETAIL VIEW STYLES --- */
         #character-detail-view {
-            display: none; /* Hidden by default */
+            display: none; 
             max-width: 800px;
             margin: 0 auto;
             text-align: left;
@@ -34,22 +33,43 @@
             box-shadow: 0 4px 20px rgba(0,0,0,0.1);
         }
 
-        /* The image is now very large */
         .large-character-img {
             width: 100%;
             height: auto;
-            max-height: 500px;
-            object-fit: contain; /* Ensures the full car is seen without cropping */
+            max-height: 450px;
+            object-fit: contain; 
             border-radius: 10px;
             margin-bottom: 20px;
-            background-color: #eee; /* Light background for transparent images */
+            background-color: #f9f9f9; 
+            border: 1px solid #eee;
         }
 
-        .detail-name { font-size: 36px; color: #333; margin: 0; }
-        .detail-model { font-size: 18px; font-weight: bold; color: #d32f2f; margin-bottom: 20px; }
-        .detail-quote { font-style: italic; color: #555; margin-bottom: 25px; font-size: 22px; text-align: center; line-height: 1.4; border-left: 5px solid #d32f2f; padding-left: 15px;}
+        .detail-name { font-size: 36px; color: #333; margin: 0 0 10px 0; }
+        
+        /* --- NEW STATS GRID DESIGN --- */
+        .stats-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #e9ecef;
+            margin-bottom: 25px;
+        }
+        .stat-item {
+            font-size: 15px;
+            color: #444;
+        }
+        .stat-label {
+            font-weight: bold;
+            color: #d32f2f;
+            margin-right: 5px;
+        }
+
+        .detail-quote { font-style: italic; color: #555; margin-bottom: 25px; font-size: 20px; text-align: center; line-height: 1.4; border-left: 5px solid #d32f2f; padding-left: 15px;}
         .detail-desc { line-height: 1.8; color: #333; font-size: 16px; margin-bottom: 30px; }
-        .detail-actor { font-size: 14px; color: #888; border-top: 1px solid #eee; padding-top: 15px; font-weight: bold;}
+        .detail-actor { font-size: 15px; color: #888; border-top: 1px solid #eee; padding-top: 15px; font-weight: bold; text-align: center;}
 
         /* Back Button Style */
         .back-btn {
@@ -69,13 +89,16 @@
         }
         .back-btn:hover { background-color: #b71c1c; }
 
+        @media (max-width: 600px) {
+            .stats-container { grid-template-columns: 1fr; } /* Stacks stats on small screens */
+        }
     </style>
 </head>
 <body>
 
     <div id="homepage-view">
         <h1>Welcome to Radiator Springs!</h1>
-        <p class="subtitle">Click on any character to learn more about them.</p>
+        <p class="subtitle">Click on any character to view their full garage stats.</p>
 
         <div class="grid" id="character-container">
             <p>Loading characters...</p>
@@ -91,21 +114,25 @@
             <img id="detailImg" class="large-character-img" src="" alt="">
             
             <h2 id="detailName" class="detail-name"></h2>
-            <div id="detailModel" class="car-model-sm detail-model"></div>
+            
+            <div class="stats-container">
+                <div class="stat-item"><span class="stat-label">Year:</span> <span id="detailYear"></span></div>
+                <div class="stat-item"><span class="stat-label">Model:</span> <span id="detailModel"></span></div>
+                <div class="stat-item"><span class="stat-label">Engine:</span> <span id="detailEngine"></span></div>
+                <div class="stat-item"><span class="stat-label">Top Speed:</span> <span id="detailSpeed"></span></div>
+                <div class="stat-item"><span class="stat-label">Occupation:</span> <span id="detailOccupation"></span></div>
+            </div>
             
             <p id="detailQuote" class="detail-quote"></p>
-            
             <p id="detailDesc" class="detail-desc"></p>
-            
             <div id="detailActor" class="detail-actor"></div>
         </div>
     </div>
 
     <script>
         const API_URL = "/characters/";
-        let allCharacters = []; // Store fetched data locally
+        let allCharacters = []; 
 
-        // 1. Fetch data from API on load
         async function fetchCharacters() {
             try {
                 const response = await fetch(API_URL);
@@ -118,60 +145,51 @@
             }
         }
 
-        // 2. Display the Grid on Homepage
         function displayCharacters(characters) {
             const container = document.getElementById('character-container');
             container.innerHTML = ""; 
             
             characters.forEach((character, index) => {
-                // Reuse the same image path logic
                 const imageName = character.name.toLowerCase().replace(/ /g, '_');
                 const card = document.createElement('div');
                 card.className = 'card';
-                
-                // When clicked, switch to detail view
                 card.onclick = () => showCharacterDetail(index, imageName);
                 
                 card.innerHTML = `
                     <img src="images/${imageName}.jpg" onerror="this.src='https://via.placeholder.com/250x150?text=No+Image'">
                     <h3>${character.name}</h3>
-                    <div class="car-model-sm">${character.car_model}</div>
                 `;
                 container.appendChild(card);
             });
         }
 
-        // 3. Logic to show the LARGE Character Detail View
         function showCharacterDetail(index, imageName) {
-            const char = allCharacters[index]; // Get cached data
+            const char = allCharacters[index]; 
             
-            // Populate the detailed view elements
+            // Populate the new stats
             document.getElementById('detailImg').src = `images/${imageName}.jpg`;
             document.getElementById('detailImg').alt = char.name;
             document.getElementById('detailName').innerText = char.name;
+            document.getElementById('detailYear').innerText = char.year;
             document.getElementById('detailModel').innerText = char.car_model;
+            document.getElementById('detailEngine').innerText = char.engine;
+            document.getElementById('detailSpeed').innerText = char.top_speed;
+            document.getElementById('detailOccupation').innerText = char.occupation;
+            
             document.getElementById('detailQuote').innerText = `"${char.quote}"`;
             document.getElementById('detailDesc').innerText = char.description;
             document.getElementById('detailActor').innerText = `Voiced by: ${char.actor ? char.actor.name : 'Unknown'}`;
             
-            // HIDE the homepage grid
             document.getElementById('homepage-view').style.display = "none";
-            // SHOW the character detail view
             document.getElementById('character-detail-view').style.display = "block";
-            
-            // Scroll to the top of the page so they see the image immediately
             window.scrollTo(0, 0);
         }
 
-        // 4. Logic for the "Back" button
         function showHomePage() {
-            // HIDE the detail view
             document.getElementById('character-detail-view').style.display = "none";
-            // SHOW the homepage grid again
             document.getElementById('homepage-view').style.display = "block";
         }
 
-        // Run on page load
         fetchCharacters();
     </script>
 </body>
